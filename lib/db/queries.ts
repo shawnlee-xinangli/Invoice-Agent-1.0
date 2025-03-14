@@ -363,10 +363,23 @@ export async function checkDuplicateInvoice({
   amount: string;
 }) {
   try {
+    // Create a checksum for this invoice combination
     const duplicateChecksum = createHash('md5')
       .update(`${vendorName}|${invoiceNumber}|${amount}`)
       .digest('hex');
 
+    // First try checking by checksum if available
+    const existingByChecksum = await db
+      .select()
+      .from(invoice)
+      .where(eq(invoice.duplicateChecksum, duplicateChecksum))
+      .limit(1);
+      
+    if (existingByChecksum.length > 0) {
+      return true;
+    }
+
+    // If no checksum match, check by individual fields
     const existingInvoices = await db
       .select()
       .from(invoice)
@@ -376,12 +389,15 @@ export async function checkDuplicateInvoice({
           eq(invoice.invoiceNumber, invoiceNumber),
           eq(invoice.amount, amount)
         )
-      );
+      )
+      .limit(1);
 
     return existingInvoices.length > 0;
   } catch (error) {
-    console.error('Failed to check for duplicate invoice');
-    throw error;
+    console.error('Failed to check for duplicate invoice', error);
+    // Return false on error to avoid blocking the processing
+    // but log the error for investigation
+    return false;
   }
 }
 
@@ -390,39 +406,52 @@ export async function saveInvoiceMetadata({
   id,
   documentId,
   vendorName,
+  customerName = "",
   invoiceNumber,
+  invoiceDate = "",
+  dueDate = "",
   amount,
+  currency = "",
   additionalDetails = {}
 }: {
   id: string;
   documentId: string;
   vendorName: string;
+  customerName?: string;
   invoiceNumber: string;
+  invoiceDate?: string;
+  dueDate?: string;
   amount: string;
+  currency?: string;
   additionalDetails?: Partial<Omit<Invoice, 'id' | 'documentId' | 'vendorName' | 'invoiceNumber' | 'amount'>>
 }) {
   try {
+    // Generate checksum for duplicate detection
     const duplicateChecksum = createHash('md5')
       .update(`${vendorName}|${invoiceNumber}|${amount}`)
       .digest('hex');
 
+    // Insert the invoice record
     return await db.insert(invoice).values({
       id,
       documentId,
       vendorName,
+      customerName,
       invoiceNumber,
+      invoiceDate,
+      dueDate,
       amount,
+      currency,
       processed: true,
       duplicateChecksum,
       createdAt: new Date(),
       ...additionalDetails
     });
   } catch (error) {
-    console.error('Failed to save invoice metadata');
+    console.error('Failed to save invoice metadata', error);
     throw error;
   }
 }
-
 // Update invoice with more flexibility
 export async function updateInvoiceById({
   id,
@@ -483,7 +512,8 @@ export async function recordInvoiceProcessingCost({
         tokenUsage: JSON.stringify({ 
           inputTokens, 
           outputTokens, 
-          totalTokens: inputTokens + outputTokens 
+          totalTokens: inputTokens + outputTokens,
+          estimatedCost: totalCost.toFixed(4)
         })
       })
       .where(eq(invoice.id, invoiceId));

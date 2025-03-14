@@ -297,9 +297,16 @@ function PureAttachmentsButton({
       onClick={(event) => {
         event.preventDefault();
         fileInputRef.current?.click();
+        if (!isLoading) {
+          toast.success('Upload an invoice document', {
+            description: 'Supported formats: PDF, JPEG, PNG',
+            duration: 3000,
+          });
+        }
       }}
       disabled={isLoading}
       variant="ghost"
+      title="Upload invoice document (PDF, JPEG, PNG)"
     >
       <PaperclipIcon size={14} />
     </Button>

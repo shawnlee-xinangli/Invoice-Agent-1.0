@@ -1,6 +1,8 @@
+'use client';
+
 import type { Attachment } from 'ai';
 
-import { LoaderIcon } from './icons';
+import { LoaderIcon, FileIcon } from './icons';
 
 export const PreviewAttachment = ({
   attachment,
@@ -16,7 +18,6 @@ export const PreviewAttachment = ({
       <div className="w-20 h-16 aspect-video bg-muted rounded-md relative flex flex-col items-center justify-center">
         {contentType ? (
           contentType.startsWith('image') ? (
-            // NOTE: it is recommended to use next/image for images
             // eslint-disable-next-line @next/next/no-img-element
             <img
               key={url}
@@ -24,6 +25,10 @@ export const PreviewAttachment = ({
               alt={name ?? 'An image attachment'}
               className="rounded-md size-full object-cover"
             />
+          ) : contentType === 'application/pdf' ? (
+            <div className="text-muted-foreground">
+              <FileIcon />
+            </div>
           ) : (
             <div className="" />
           )

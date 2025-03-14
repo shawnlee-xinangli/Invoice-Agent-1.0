@@ -35,6 +35,11 @@ function PureSuggestedActions({ chatId, append }: SuggestedActionsProps) {
       label: 'in San Francisco?',
       action: 'What is the weather in San Francisco?',
     },
+    {
+      title: 'Process invoice',
+      label: 'from PDF',
+      action: 'Process invoice from PDF',
+    },
   ];
 
   return (
