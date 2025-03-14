@@ -62,7 +62,11 @@ export const document = sqliteTable(
     kind: text('kind')
       .notNull()
       .default('text')
-      .$type<'text' | 'code' | 'image' | 'sheet'>(),
+      .$type<'text' | 'code' | 'image' | 'sheet' | 'invoice'>(),
+    userId: text('userId').notNull(),
+    // For invoice tracking 
+    tokenUsage: integer('tokenUsage'),
+    processingCost: text('processingCost')
   },
   (table) => {
     return {
@@ -99,3 +103,18 @@ export const suggestion = sqliteTable(
 );
 
 export type Suggestion = InferSelectModel<typeof suggestion>;
+
+export const invoice = sqliteTable(
+  'Invoice',
+  {
+    id: text('id').primaryKey().notNull(),
+    documentId: text('documentId').notNull().references(() => document.id),
+    vendorName: text('vendorName').notNull(),
+    invoiceNumber: text('invoiceNumber').notNull(),
+    amount: text('amount').notNull(),
+    processed: integer('processed', { mode: 'boolean' }).notNull().default(false),
+    createdAt: integer('createdAt', { mode: 'timestamp' }).notNull(),
+  }
+);
+
+export type Invoice = InferSelectModel<typeof invoice>;

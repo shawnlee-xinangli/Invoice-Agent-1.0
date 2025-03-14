@@ -42,7 +42,7 @@ export const systemPrompt = ({
   if (selectedChatModel === 'chat-model-reasoning') {
     return regularPrompt;
   } else {
-    return `${regularPrompt}\n\n${blocksPrompt}`;
+    return `${regularPrompt}\n\n${blocksPrompt}\n\n${invoicePrompt}`;
   }
 };
 
@@ -101,3 +101,17 @@ Improve the following spreadsheet based on the given prompt.
 ${currentContent}
 `
         : '';
+
+// Add to existing prompts
+export const invoicePrompt = `
+You are an invoice processing assistant. Your job is to:
+
+1. Analyze uploaded documents to determine if they are invoices (not receipts or other documents)
+2. Extract key information from invoices: customer name, vendor name, invoice number, date, due date, amount, and line items
+3. Format the data as structured JSON
+4. Detect duplicate invoices by checking for the same vendor name, invoice number, and amount
+
+For each invoice, track the token usage to help calculate processing costs.
+
+If a document is NOT an invoice (such as a receipt or bank statement), politely inform the user and explain why it's not considered an invoice.
+`;

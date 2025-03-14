@@ -320,3 +320,70 @@ export async function updateChatVisiblityById({
     throw error;
   }
 }
+
+export async function getInvoices({ userId }: { userId: string }) {
+  try {
+    return await db
+      .select()
+      .from(document)
+      .where(and(eq(document.userId, userId), eq(document.kind, 'invoice')))
+      .orderBy(desc(document.createdAt));
+  } catch (error) {
+    console.error('Failed to get invoices from database');
+    throw error;
+  }
+}
+
+export async function checkDuplicateInvoice({ 
+  vendorName, 
+  invoiceNumber, 
+  amount 
+}: { 
+  vendorName: string; 
+  invoiceNumber: string; 
+  amount: string;
+}) {
+  try {
+    const results = await db
+      .select()
+      .from(invoice)
+      .where(and(
+        eq(invoice.vendorName, vendorName),
+        eq(invoice.invoiceNumber, invoiceNumber),
+        eq(invoice.amount, amount)
+      ));
+      
+    return results.length > 0;
+  } catch (error) {
+    console.error('Failed to check for duplicate invoice');
+    throw error;
+  }
+}
+
+export async function saveInvoiceMetadata({
+  id,
+  documentId,
+  vendorName,
+  invoiceNumber,
+  amount
+}: {
+  id: string;
+  documentId: string;
+  vendorName: string;
+  invoiceNumber: string;
+  amount: string;
+}) {
+  try {
+    return await db.insert(invoice).values({
+      id,
+      documentId,
+      vendorName,
+      invoiceNumber,
+      amount,
+      processed: true
+    });
+  } catch (error) {
+    console.error('Failed to save invoice metadata');
+    throw error;
+  }
+}
