@@ -2,6 +2,7 @@ import 'server-only';
 import { and, asc, desc, eq, gt, gte, inArray } from 'drizzle-orm';
 import { drizzle } from 'drizzle-orm/better-sqlite3';
 import Database from 'better-sqlite3';
+import { createHash } from 'crypto';
 
 import {
   chat,
@@ -11,6 +12,8 @@ import {
   type Message,
   message,
   vote,
+  invoice,
+  type Invoice,
 } from './schema';
 import type { BlockKind } from '@/components/block';
 
@@ -321,19 +324,35 @@ export async function updateChatVisiblityById({
   }
 }
 
-export async function getInvoices({ userId }: { userId: string }) {
+export async function getInvoices({ 
+  page = 1, 
+  pageSize = 10,
+  sortBy = 'createdAt',
+  sortOrder = 'desc'
+}: { 
+  page?: number;
+  pageSize?: number;
+  sortBy?: keyof Invoice;
+  sortOrder?: 'asc' | 'desc';
+}) {
   try {
+    const offset = (page - 1) * pageSize;
+    const orderFunction = sortOrder === 'asc' ? asc : desc;
+    const orderColumn = invoice[sortBy];
+
     return await db
       .select()
-      .from(document)
-      .where(and(eq(document.userId, userId), eq(document.kind, 'invoice')))
-      .orderBy(desc(document.createdAt));
+      .from(invoice)
+      .orderBy(orderFunction(orderColumn))
+      .limit(pageSize)
+      .offset(offset);
   } catch (error) {
-    console.error('Failed to get invoices from database');
+    console.error('Failed to get invoices from database', error);
     throw error;
   }
 }
 
+// Enhanced duplicate invoice check
 export async function checkDuplicateInvoice({ 
   vendorName, 
   invoiceNumber, 
@@ -344,46 +363,132 @@ export async function checkDuplicateInvoice({
   amount: string;
 }) {
   try {
-    const results = await db
+    const duplicateChecksum = createHash('md5')
+      .update(`${vendorName}|${invoiceNumber}|${amount}`)
+      .digest('hex');
+
+    const existingInvoices = await db
       .select()
       .from(invoice)
-      .where(and(
-        eq(invoice.vendorName, vendorName),
-        eq(invoice.invoiceNumber, invoiceNumber),
-        eq(invoice.amount, amount)
-      ));
-      
-    return results.length > 0;
+      .where(
+        and(
+          eq(invoice.vendorName, vendorName),
+          eq(invoice.invoiceNumber, invoiceNumber),
+          eq(invoice.amount, amount)
+        )
+      );
+
+    return existingInvoices.length > 0;
   } catch (error) {
     console.error('Failed to check for duplicate invoice');
     throw error;
   }
 }
 
+// Save invoice metadata with more comprehensive details
 export async function saveInvoiceMetadata({
   id,
   documentId,
   vendorName,
   invoiceNumber,
-  amount
+  amount,
+  additionalDetails = {}
 }: {
   id: string;
   documentId: string;
   vendorName: string;
   invoiceNumber: string;
   amount: string;
+  additionalDetails?: Partial<Omit<Invoice, 'id' | 'documentId' | 'vendorName' | 'invoiceNumber' | 'amount'>>
 }) {
   try {
+    const duplicateChecksum = createHash('md5')
+      .update(`${vendorName}|${invoiceNumber}|${amount}`)
+      .digest('hex');
+
     return await db.insert(invoice).values({
       id,
       documentId,
       vendorName,
       invoiceNumber,
       amount,
-      processed: true
+      processed: true,
+      duplicateChecksum,
+      createdAt: new Date(),
+      ...additionalDetails
     });
   } catch (error) {
     console.error('Failed to save invoice metadata');
+    throw error;
+  }
+}
+
+// Update invoice with more flexibility
+export async function updateInvoiceById({
+  id,
+  updates
+}: {
+  id: string;
+  updates: Partial<Omit<Invoice, 'id'>>
+}) {
+  try {
+    return await db
+      .update(invoice)
+      .set({
+        ...updates,
+        updatedAt: new Date()
+      })
+      .where(eq(invoice.id, id));
+  } catch (error) {
+    console.error('Failed to update invoice');
+    throw error;
+  }
+}
+
+// Get invoice by ID with more detailed retrieval
+export async function getInvoiceById({ id }: { id: string }) {
+  try {
+    const [selectedInvoice] = await db
+      .select()
+      .from(invoice)
+      .where(eq(invoice.id, id));
+
+    return selectedInvoice;
+  } catch (error) {
+    console.error('Failed to get invoice by id');
+    throw error;
+  }
+}
+
+// Token usage and cost tracking
+export async function recordInvoiceProcessingCost({
+  invoiceId,
+  inputTokens,
+  outputTokens
+}: {
+  invoiceId: string;
+  inputTokens: number;
+  outputTokens: number;
+}) {
+  try {
+    // Rough cost estimation based on OpenAI pricing
+    const inputCost = inputTokens * 0.00003; // $0.03 per 1000 tokens
+    const outputCost = outputTokens * 0.00006; // $0.06 per 1000 tokens
+    const totalCost = inputCost + outputCost;
+
+    return await db
+      .update(invoice)
+      .set({
+        processingCost: totalCost.toFixed(4),
+        tokenUsage: JSON.stringify({ 
+          inputTokens, 
+          outputTokens, 
+          totalTokens: inputTokens + outputTokens 
+        })
+      })
+      .where(eq(invoice.id, invoiceId));
+  } catch (error) {
+    console.error('Failed to record invoice processing cost');
     throw error;
   }
 }

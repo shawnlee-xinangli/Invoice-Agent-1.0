@@ -104,17 +104,50 @@ export const suggestion = sqliteTable(
 
 export type Suggestion = InferSelectModel<typeof suggestion>;
 
-export const invoice = sqliteTable(
-  'Invoice',
-  {
-    id: text('id').primaryKey().notNull(),
-    documentId: text('documentId').notNull().references(() => document.id),
-    vendorName: text('vendorName').notNull(),
-    invoiceNumber: text('invoiceNumber').notNull(),
-    amount: text('amount').notNull(),
-    processed: integer('processed', { mode: 'boolean' }).notNull().default(false),
-    createdAt: integer('createdAt', { mode: 'timestamp' }).notNull(),
-  }
-);
+export const invoice = sqliteTable('Invoice', {
+  id: text('id').primaryKey().notNull(),
+  documentId: text('documentId').notNull().references(() => document.id),
+  chatId: text('chatId').notNull().references(() => chat.id),
+  
+  // Enhanced invoice fields
+  vendorName: text('vendorName').notNull(),
+  customerName: text('customerName'),
+  invoiceNumber: text('invoiceNumber').notNull(),
+  
+  // Dates as text to allow flexible parsing
+  invoiceDate: text('invoiceDate'),
+  dueDate: text('dueDate'),
+  
+  // Financial details
+  amount: text('amount').notNull(),
+  currency: text('currency', { enum: ['USD', 'EUR', 'GBP', 'CAD'] }),
+  
+  // Processing metadata
+  processed: integer('processed', { mode: 'boolean' }).notNull().default(false),
+  processingCost: text('processingCost'),
+  tokenUsage: text('tokenUsage'), // Store as JSON string
+  
+  // Audit and tracking
+  createdAt: integer('createdAt', { mode: 'timestamp' }).notNull(),
+  updatedAt: integer('updatedAt', { mode: 'timestamp' }),
+  
+  // Duplicate detection
+  duplicateChecksum: text('duplicateChecksum').unique()
+});
 
 export type Invoice = InferSelectModel<typeof invoice>;
+
+// Line items as a separate table for normalized data
+export const invoiceLineItem = sqliteTable('InvoiceLineItem', {
+  id: text('id').primaryKey().notNull(),
+  invoiceId: text('invoiceId').notNull().references(() => invoice.id),
+  
+  description: text('description'),
+  quantity: text('quantity'),
+  unitPrice: text('unitPrice'),
+  lineTotal: text('lineTotal'),
+  
+  createdAt: integer('createdAt', { mode: 'timestamp' }).notNull()
+});
+
+export type InvoiceLineItem = InferSelectModel<typeof invoiceLineItem>;

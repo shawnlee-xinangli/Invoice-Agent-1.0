@@ -43,3 +43,39 @@ CREATE TABLE `Vote` (
 	FOREIGN KEY (`chatId`) REFERENCES `Chat`(`id`) ON UPDATE no action ON DELETE no action,
 	FOREIGN KEY (`messageId`) REFERENCES `Message`(`id`) ON UPDATE no action ON DELETE no action
 );
+
+-- Add new Invoice table
+CREATE TABLE `Invoice` (
+  `id` text PRIMARY KEY NOT NULL,
+  `documentId` text NOT NULL,
+  `chatId` text NOT NULL,
+  `vendorName` text NOT NULL,
+  `customerName` text,
+  `invoiceNumber` text NOT NULL,
+  `invoiceDate` text,
+  `dueDate` text,
+  `amount` text NOT NULL,
+  `currency` text,
+  `processed` integer DEFAULT 0 NOT NULL,
+  `processingCost` text,
+  `tokenUsage` text,
+  `userId` text NOT NULL,
+  `createdAt` integer NOT NULL,
+  `updatedAt` integer,
+  `duplicateChecksum` text UNIQUE,
+  FOREIGN KEY (`documentId`) REFERENCES `Document`(`id`),
+  FOREIGN KEY (`chatId`) REFERENCES `Chat`(`id`),
+  FOREIGN KEY (`userId`) REFERENCES `User`(`id`)
+);
+
+-- Create InvoiceLineItem table
+CREATE TABLE `InvoiceLineItem` (
+  `id` text PRIMARY KEY NOT NULL,
+  `invoiceId` text NOT NULL,
+  `description` text,
+  `quantity` text,
+  `unitPrice` text,
+  `lineTotal` text,
+  `createdAt` integer NOT NULL,
+  FOREIGN KEY (`invoiceId`) REFERENCES `Invoice`(`id`)
+);
