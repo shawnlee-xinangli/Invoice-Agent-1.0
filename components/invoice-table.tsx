@@ -78,7 +78,7 @@ export function InvoiceTable({ invoices: initialInvoices }) {
           </TableRow>
         </TableHeader>
         <TableBody>
-          {invoices.map((invoice: { id: string, content: string }) => {
+          {invoices.map(invoice => {
             const data = JSON.parse(invoice.content);
             return (
               <TableRow key={invoice.id}>
