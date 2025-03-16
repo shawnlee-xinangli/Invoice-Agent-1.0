@@ -20,11 +20,13 @@
   "dependencies": {
     "@ai-sdk/fireworks": "^0.1.8",
     "@ai-sdk/openai": "1.1.9",
+    "@anthropic-ai/sdk": "^0.39.0",
     "@codemirror/lang-javascript": "^6.2.2",
     "@codemirror/lang-python": "^6.1.6",
     "@codemirror/state": "^6.5.0",
     "@codemirror/theme-one-dark": "^6.1.2",
     "@codemirror/view": "^6.35.3",
+    "@opentelemetry/api": "^1.9.0",
     "@radix-ui/react-alert-dialog": "^1.1.2",
     "@radix-ui/react-dialog": "^1.1.2",
     "@radix-ui/react-dropdown-menu": "^2.1.2",
@@ -54,8 +56,10 @@
     "next": "15.0.3-canary.2",
     "next-auth": "5.0.0-beta.25",
     "next-themes": "^0.3.0",
+    "openai": "^4.87.3",
     "orderedmap": "^2.1.1",
     "papaparse": "^5.5.2",
+    "pdf-parse": "^1.1.1",
     "prosemirror-example-setup": "^1.2.3",
     "prosemirror-inputrules": "^1.4.0",
     "prosemirror-markdown": "^1.13.1",
@@ -71,11 +75,14 @@
     "react-resizable-panels": "^2.1.7",
     "remark-gfm": "^4.0.0",
     "server-only": "^0.0.1",
+    "sharp": "^0.33.5",
     "sonner": "^1.5.0",
     "swr": "^2.2.5",
     "tailwind-merge": "^2.5.2",
     "tailwindcss-animate": "^1.0.7",
+    "tesseract.js": "^6.0.0",
     "usehooks-ts": "^3.1.0",
+    "vercel": "^41.4.1",
     "zod": "^3.23.8"
   },
   "devDependencies": {
@@ -98,5 +105,15 @@
     "tailwindcss": "^3.4.1",
     "tsx": "^4.19.1",
     "typescript": "^5.6.3"
+  },
+  "pnpm": {
+    "onlyBuiltDependencies": [
+      "@biomejs/biome",
+      "better-sqlite3",
+      "bufferutil",
+      "esbuild",
+      "sharp",
+      "tesseract.js"
+    ]
   }
 }

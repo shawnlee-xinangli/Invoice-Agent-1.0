@@ -35,6 +35,7 @@ function PureMultimodalInput({
   input,
   setInput,
   isLoading,
+  setIsLoading,
   stop,
   attachments,
   setAttachments,
@@ -48,6 +49,7 @@ function PureMultimodalInput({
   input: string;
   setInput: (value: string) => void;
   isLoading: boolean;
+  setIsLoading: (value: boolean) => void;
   stop: () => void;
   attachments: Array<Attachment>;
   setAttachments: Dispatch<SetStateAction<Array<Attachment>>>;
@@ -67,6 +69,7 @@ function PureMultimodalInput({
 }) {
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const { width } = useWindowSize();
+  const [pendingFiles, setPendingFiles] = useState<File[]>([]);
 
   useEffect(() => {
     if (textareaRef.current) {
@@ -117,13 +120,106 @@ function PureMultimodalInput({
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [uploadQueue, setUploadQueue] = useState<Array<string>>([]);
 
-  const submitForm = useCallback(() => {
+  const processInvoice = async (file: File) => {
+    const formData = new FormData();
+    formData.append('file', file);
+
+    try {
+      const response = await fetch('/api/invoice', {
+        method: 'POST',
+        body: formData,
+      });
+
+      if (!response.ok) {
+        const data = await response.json();
+        throw new Error(data.error || `Server error: ${response.status}`);
+      }
+
+      const data = await response.json();
+      
+      // Add success message to chat
+      append({
+        role: 'assistant',
+        content: `Successfully processed invoice from ${data.vendorName} for ${(data.amount / 100).toLocaleString('en-US', { style: 'currency', currency: 'USD' })}`,
+      });
+
+      toast.success('Invoice processed successfully');
+    } catch (error) {
+      console.error('Error processing invoice:', error);
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
+      toast.error(errorMessage);
+      
+      // Add error message to chat
+      append({
+        role: 'assistant',
+        content: `Error processing invoice: ${errorMessage}`,
+      });
+    }
+  };
+
+  const handleFileChange = useCallback(
+    async (event: ChangeEvent<HTMLInputElement>) => {
+      const files = Array.from(event.target.files || []);
+
+      // Validate files
+      for (const file of files) {
+        if (file.size > 10 * 1024 * 1024) { // 10MB limit
+          toast.error('File size must be less than 10MB');
+          return;
+        }
+      }
+
+      setPendingFiles(files);
+      setUploadQueue(files.map((file) => file.name));
+      setInput('Process this invoice');
+    },
+    [setInput],
+  );
+
+  const submitForm = useCallback(async () => {
     window.history.replaceState({}, '', `/chat/${chatId}`);
 
+    if (input.toLowerCase().trim() === 'process this invoice' && pendingFiles.length > 0) {
+      try {
+        // Add a processing message
+        append({
+          role: 'user',
+          content: input
+        });
+        append({
+          role: 'assistant',
+          content: `Processing ${pendingFiles.length > 1 ? 'invoices' : 'invoice'}...`
+        });
+
+        // Process through invoice API directly without creating attachments
+        for (const file of pendingFiles) {
+          await processInvoice(file);
+        }
+      } catch (error) {
+        console.error('Error processing files:', error);
+        toast.error('Failed to process files');
+        append({
+          role: 'assistant',
+          content: 'Failed to process files. Please try again.'
+        });
+      } finally {
+        setPendingFiles([]);
+        setUploadQueue([]);
+        setInput('');
+        setLocalStorageInput('');
+        resetHeight();
+        if (width && width > 768) {
+          textareaRef.current?.focus();
+        }
+      }
+      // Return early to prevent chat model from processing
+      return;
+    }
+
+    // Only handle non-invoice messages
     handleSubmit(undefined, {
       experimental_attachments: attachments,
     });
-
     setAttachments([]);
     setLocalStorageInput('');
     resetHeight();
@@ -132,66 +228,17 @@ function PureMultimodalInput({
       textareaRef.current?.focus();
     }
   }, [
+    input,
+    pendingFiles,
     attachments,
     handleSubmit,
     setAttachments,
     setLocalStorageInput,
     width,
     chatId,
+    append,
+    processInvoice
   ]);
-
-  const uploadFile = async (file: File) => {
-    const formData = new FormData();
-    formData.append('file', file);
-
-    try {
-      const response = await fetch('/api/files/upload', {
-        method: 'POST',
-        body: formData,
-      });
-
-      if (response.ok) {
-        const data = await response.json();
-        const { url, pathname, contentType } = data;
-
-        return {
-          url,
-          name: pathname,
-          contentType: contentType,
-        };
-      }
-      const { error } = await response.json();
-      toast.error(error);
-    } catch (error) {
-      toast.error('Failed to upload file, please try again!');
-    }
-  };
-
-  const handleFileChange = useCallback(
-    async (event: ChangeEvent<HTMLInputElement>) => {
-      const files = Array.from(event.target.files || []);
-
-      setUploadQueue(files.map((file) => file.name));
-
-      try {
-        const uploadPromises = files.map((file) => uploadFile(file));
-        const uploadedAttachments = await Promise.all(uploadPromises);
-        const successfullyUploadedAttachments = uploadedAttachments.filter(
-          (attachment) => attachment !== undefined,
-        );
-
-        setAttachments((currentAttachments) => [
-          ...currentAttachments,
-          ...successfullyUploadedAttachments,
-        ]);
-      } catch (error) {
-        console.error('Error uploading files!', error);
-      } finally {
-        setUploadQueue([]);
-      }
-    },
-    [setAttachments],
-  );
 
   return (
     <div className="relative w-full flex flex-col gap-4">
@@ -206,16 +253,13 @@ function PureMultimodalInput({
         className="fixed -top-4 -left-4 size-0.5 opacity-0 pointer-events-none"
         ref={fileInputRef}
         multiple
+        accept=".pdf,image/jpeg,image/png"
         onChange={handleFileChange}
         tabIndex={-1}
       />
 
-      {(attachments.length > 0 || uploadQueue.length > 0) && (
+      {uploadQueue.length > 0 && (
         <div className="flex flex-row gap-2 overflow-x-scroll items-end">
-          {attachments.map((attachment) => (
-            <PreviewAttachment key={attachment.url} attachment={attachment} />
-          ))}
-
           {uploadQueue.map((filename) => (
             <PreviewAttachment
               key={filename}
@@ -224,7 +268,7 @@ function PureMultimodalInput({
                 name: filename,
                 contentType: '',
               }}
-              isUploading={true}
+              isUploading={false}
             />
           ))}
         </div>
@@ -347,7 +391,7 @@ function PureSendButton({
         event.preventDefault();
         submitForm();
       }}
-      disabled={input.length === 0 || uploadQueue.length > 0}
+      disabled={input.length === 0}
     >
       <ArrowUpIcon size={14} />
     </Button>
@@ -355,8 +399,6 @@ function PureSendButton({
 }
 
 const SendButton = memo(PureSendButton, (prevProps, nextProps) => {
-  if (prevProps.uploadQueue.length !== nextProps.uploadQueue.length)
-    return false;
   if (prevProps.input !== nextProps.input) return false;
   return true;
 });

@@ -227,3 +227,12 @@ export function getDocumentTimestampByIndex(
 
   return documents[index].createdAt;
 }
+
+export function formatDate(date: Date): string {
+  const parsedDate = new Date(date);
+  return new Intl.DateTimeFormat('en-US', {
+    year: 'numeric',
+    month: 'short',
+    day: 'numeric'
+  }).format(parsedDate)
+}

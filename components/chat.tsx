@@ -42,15 +42,18 @@ export function Chat({
   } = useChat({
     id,
     body: { id, selectedChatModel: selectedChatModel },
-    initialMessages,
+    initialMessages: [],
     experimental_throttle: 100,
     sendExtraMessageFields: true,
     generateId: generateUUID,
+    api: '/api/chat/no-op',
     onFinish: () => {
       mutate('/api/history');
     },
     onError: (error) => {
-      toast.error('An error occured, please try again!');
+      if (!input.toLowerCase().includes('process this invoice')) {
+        toast.error('An error occurred, please try again!');
+      }
     },
   });
 
@@ -77,10 +80,9 @@ export function Chat({
           isLoading={isLoading}
           votes={votes}
           messages={messages}
-          setMessages={setMessages}
+          setMessages={()=>null}
           reload={reload}
           isReadonly={false}
-          isBlockVisible={isBlockVisible}
         />
 
         <form className="flex mx-auto px-4 bg-background pb-4 md:pb-6 gap-2 w-full md:max-w-3xl">
@@ -90,6 +92,7 @@ export function Chat({
             setInput={setInput}
             handleSubmit={handleSubmit}
             isLoading={isLoading}
+            setIsLoading={() => {}}
             stop={stop}
             attachments={attachments}
             setAttachments={setAttachments}

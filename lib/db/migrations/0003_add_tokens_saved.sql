@@ -1,0 +1,1 @@
+ALTER TABLE Invoice ADD COLUMN tokensSaved integer DEFAULT 0; 

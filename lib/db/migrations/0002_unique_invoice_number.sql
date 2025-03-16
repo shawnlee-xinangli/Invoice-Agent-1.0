@@ -1,0 +1,1 @@
+CREATE UNIQUE INDEX idx_invoice_vendor_number_amount ON Invoice(vendorName, invoiceNumber, amount); 
