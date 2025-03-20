@@ -56,6 +56,7 @@ async function imageToText(buffer: Buffer): Promise<string> {
 }
 
 const errorResponse = (message: string, status = 400) => {
+  console.log("Error response:", message);
   return NextResponse.json(
     { error: message },
     { status }
@@ -214,7 +215,8 @@ export async function POST(request: NextRequest) {
         createdAt: new Date(),
         status: 'processed',
         originalFileUrl: '', // TODO: Implement file storage
-        tokenUsage: response.usage?.total_tokens
+        tokenUsage: response.usage?.total_tokens,
+        cachedToken: response.usage?.prompt_tokens_details?.cached_tokens
       };
 
       responseWithId['invoiceDate'] = invoiceDate;

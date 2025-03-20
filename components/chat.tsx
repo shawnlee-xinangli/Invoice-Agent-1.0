@@ -42,11 +42,11 @@ export function Chat({
   } = useChat({
     id,
     body: { id, selectedChatModel: selectedChatModel },
-    initialMessages: [],
+    initialMessages,
     experimental_throttle: 100,
     sendExtraMessageFields: true,
     generateId: generateUUID,
-    api: '/api/chat/no-op',
+    api: '/api/chat',
     onFinish: () => {
       mutate('/api/history');
     },
@@ -80,7 +80,7 @@ export function Chat({
           isLoading={isLoading}
           votes={votes}
           messages={messages}
-          setMessages={()=>null}
+          setMessages={setMessages}
           reload={reload}
           isReadonly={false}
         />
@@ -122,3 +122,4 @@ export function Chat({
     </>
   );
 }
+

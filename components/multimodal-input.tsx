@@ -20,6 +20,7 @@ import {
 } from 'react';
 import { toast } from 'sonner';
 import { useLocalStorage, useWindowSize } from 'usehooks-ts';
+import { nanoid } from 'nanoid';
 
 import { sanitizeUIMessages } from '@/lib/utils';
 
@@ -29,6 +30,7 @@ import { Button } from './ui/button';
 import { Textarea } from './ui/textarea';
 import { SuggestedActions } from './suggested-actions';
 import equal from 'fast-deep-equal';
+import { saveMessages } from '@/lib/db/queries';
 
 function PureMultimodalInput({
   chatId,
@@ -137,11 +139,28 @@ function PureMultimodalInput({
 
       const data = await response.json();
       
-      // Add success message to chat
-      append({
-        role: 'assistant',
+      // Create assistant message
+      const assistantMessage = {
+        role: 'assistant' as const,
         content: `Successfully processed invoice from ${data.vendorName} for ${(data.amount / 100).toLocaleString('en-US', { style: 'currency', currency: 'USD' })}`,
-      });
+      };
+      
+      // Add success message to chat
+      await append(assistantMessage);
+      
+      try {
+        // save to database directly
+        await saveMessages({
+          messages: [{
+            ...assistantMessage,
+            id: nanoid(),
+            chatId,
+            createdAt: new Date()
+          }]
+        });
+      } catch (error) {
+        console.error('Failed to save assistant message to database:', error);
+      }
 
       toast.success('Invoice processed successfully');
     } catch (error) {
@@ -149,11 +168,29 @@ function PureMultimodalInput({
       const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
       toast.error(errorMessage);
       
-      // Add error message to chat
-      append({
-        role: 'assistant',
+      // Create error message
+      const errorAssistantMessage = {
+        role: 'assistant' as const,
         content: `Error processing invoice: ${errorMessage}`,
-      });
+      };
+      
+      // Add error message to chat
+      await append(errorAssistantMessage);
+      
+      try {
+        console.log('Saving error assistant message to database:', errorAssistantMessage);
+        // save to database directly
+        await saveMessages({
+          messages: [{
+            ...errorAssistantMessage,
+            id: nanoid(),
+            chatId, 
+            createdAt: new Date()
+          }]
+        });
+      } catch (dbError) {
+        console.error('Failed to save error assistant message to database:', dbError);
+      }
     }
   };
 
@@ -402,3 +439,5 @@ const SendButton = memo(PureSendButton, (prevProps, nextProps) => {
   if (prevProps.input !== nextProps.input) return false;
   return true;
 });
+
+

@@ -1,4 +1,4 @@
-import 'server-only';
+'use server';
 import { and, asc, desc, eq, gt, gte, inArray } from 'drizzle-orm';
 import { drizzle } from 'drizzle-orm/better-sqlite3';
 import Database from 'better-sqlite3';
@@ -80,6 +80,7 @@ export async function getChatById({ id }: { id: string }) {
 }
 
 export async function saveMessages({ messages }: { messages: Array<Message> }) {
+  console.log('Saving messages:', messages);  
   try {
     return await db.insert(message).values(messages);
   } catch (error) {
